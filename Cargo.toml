@@ -1,11 +1,11 @@
 [package]
-name = "catpet"
+name = "pixelpal"
 version = "0.1.0"
 edition = "2021"
-description = "A ComNyang-style desktop cat pet that reacts to your mouse, keyboard and scroll, runs a Pomodoro, nudges you to stretch, and meows when Claude Code finishes."
+description = "A desktop pixel-pal that reacts to your mouse, keyboard and scroll, runs a Pomodoro, nudges you to stretch, and cheers when Claude Code finishes. Ships a pixel cat and Rick."
 
 [[bin]]
-name = "catpet"
+name = "pixelpal"
 path = "src/main.rs"
 
 [dependencies]

@@ -1,8 +1,8 @@
 //! Tiny line-based IPC over a Unix domain socket.
 //!
-//! The running pet listens on `$XDG_RUNTIME_DIR/catpet.sock` (falling back to
-//! `/tmp/catpet-$UID.sock`). Any process can connect and write a single command
-//! line to poke the cat:
+//! The running pet listens on `$XDG_RUNTIME_DIR/pixelpal.sock` (falling back to
+//! `/tmp/pixelpal-$UID.sock`). Any process can connect and write a single command
+//! line to poke the pet:
 //!
 //!   meow            -> Claude finished: jump + meow
 //!   pomodoro        -> toggle the pomodoro timer
@@ -12,7 +12,7 @@
 //!   pattern <name>  -> set fur pattern: solid | tabby | spots | tuxedo
 //!   quit            -> exit the pet
 //!
-//! This is how `catpet meow` (the CLI subcommand) and the Claude Code Stop hook
+//! This is how `pixelpal meow` (the CLI subcommand) and the Claude Code Stop hook
 //! talk to the already-running window.
 
 use std::io::{BufRead, BufReader, Write};
@@ -37,11 +37,11 @@ pub enum Command {
 pub fn socket_path() -> PathBuf {
     if let Ok(dir) = std::env::var("XDG_RUNTIME_DIR") {
         if !dir.is_empty() {
-            return PathBuf::from(dir).join("catpet.sock");
+            return PathBuf::from(dir).join("pixelpal.sock");
         }
     }
     let uid = users_uid();
-    PathBuf::from(format!("/tmp/catpet-{uid}.sock"))
+    PathBuf::from(format!("/tmp/pixelpal-{uid}.sock"))
 }
 
 fn users_uid() -> u32 {
@@ -88,13 +88,13 @@ pub fn serve(tx: Sender<Command>, wake: impl Fn() + Send + 'static) {
     let listener = match UnixListener::bind(&path) {
         Ok(l) => l,
         Err(e) => {
-            eprintln!("[catpet] could not bind IPC socket {path:?}: {e}");
+            eprintln!("[pixelpal] could not bind IPC socket {path:?}: {e}");
             return;
         }
     };
 
     thread::Builder::new()
-        .name("catpet-ipc".into())
+        .name("pixelpal-ipc".into())
         .spawn(move || {
             for stream in listener.incoming() {
                 let Ok(stream) = stream else { continue };

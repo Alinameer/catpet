@@ -11,7 +11,7 @@ pub enum Action {
     // Direct actions.
     TogglePomodoro,
     StretchNow,
-    ShowOff,      // "Show off my CatPet" — a little wiggle/hop
+    ShowOff,      // "Show off my PixelPal" — a little wiggle/hop
     TellName,     // speak the user's name
     SetName,      // prompt to set name (stub -> bubble for now)
     ShowName,     // show current name in a bubble

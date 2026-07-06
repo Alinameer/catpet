@@ -24,19 +24,32 @@ impl Default for Config {
 }
 
 impl Config {
-    fn path() -> PathBuf {
-        let base = std::env::var("XDG_CONFIG_HOME")
+    fn config_base() -> PathBuf {
+        std::env::var("XDG_CONFIG_HOME")
             .map(PathBuf::from)
             .unwrap_or_else(|_| {
                 let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".into());
                 PathBuf::from(home).join(".config")
-            });
-        base.join("catpet").join("config.txt")
+            })
+    }
+
+    fn path() -> PathBuf {
+        Self::config_base().join("pixelpal").join("config.txt")
+    }
+
+    /// Where the config lived before the project was renamed from `catpet`.
+    /// Read once on first launch so existing users keep their character/colour.
+    fn legacy_path() -> PathBuf {
+        Self::config_base().join("catpet").join("config.txt")
     }
 
     pub fn load() -> Self {
         let mut cfg = Config::default();
-        if let Ok(text) = std::fs::read_to_string(Self::path()) {
+        // Prefer the current path; fall back to the pre-rename `catpet` config so
+        // a returning user's saved character and colour survive the rename.
+        let text = std::fs::read_to_string(Self::path())
+            .or_else(|_| std::fs::read_to_string(Self::legacy_path()));
+        if let Ok(text) = text {
             cfg.apply(&text);
         }
         cfg

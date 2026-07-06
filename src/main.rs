@@ -1,13 +1,13 @@
-//! catpet — a ComNyang-style desktop cat.
+//! pixelpal — a desktop pixel-pal (cat or Rick) that reacts to your activity.
 //!
 //! Usage:
-//!   catpet                 run the pet window
-//!   catpet meow            tell a running pet: "work done", jump + meow
-//!   catpet pomodoro        toggle the pomodoro timer
-//!   catpet stretch         trigger a stretch reminder now
-//!   catpet color <name>    set fur colour (orange grey black white brown blue pink)
-//!   catpet pattern <name>  set pattern (solid tabby spots tuxedo)
-//!   catpet quit            close a running pet
+//!   pixelpal                 run the pet window
+//!   pixelpal meow            tell a running pet: "work done", jump + meow
+//!   pixelpal pomodoro        toggle the pomodoro timer
+//!   pixelpal stretch         trigger a stretch reminder now
+//!   pixelpal color <name>    set fur colour (orange grey black white brown blue pink)
+//!   pixelpal pattern <name>  set pattern (solid tabby spots tuxedo)
+//!   pixelpal quit            close a running pet
 //!
 //! The `meow`/`pomodoro`/... subcommands just connect to the running pet's Unix
 //! socket (see ipc.rs). If no pet is running they print a hint and exit.
@@ -79,13 +79,13 @@ fn main() {
 }
 
 /// Dev-only: render sample frames to PNGs so the look can be reviewed without a
-/// display. `catpet --dump <dir>`.
+/// display. `pixelpal --dump <dir>`.
 fn dump_frames(dir: &str) {
     use state::Mood;
     let sprites = sprite::Sprites::load();
     let now = Instant::now();
     let timers = Timers::new(now);
-    let menu = menu::Menu::new("CatPet");
+    let menu = menu::Menu::new("PixelPal");
     let w = render::WIN;
     let _ = std::fs::create_dir_all(dir);
 
@@ -179,7 +179,7 @@ fn dump_frames(dir: &str) {
     {
         let st = CatState::new(now);
         let cfg = Config::default();
-        let mut m = menu::Menu::new("CatPet v0.1.0");
+        let mut m = menu::Menu::new("PixelPal v0.1.0");
         m.open_at(70.0, 40.0);
         m.on_move(76.0, 40.0 + menu::HEADER_H + menu::PAD + 4.0); // hover first item
         let (bw, bh) = m.bounds_from_origin();
@@ -205,8 +205,8 @@ fn send_or_hint(line: &str) {
         Ok(()) => {}
         Err(_) => {
             eprintln!(
-                "[catpet] no running pet found. Start one with `catpet` first, \
-                 then run `catpet {}`.",
+                "[pixelpal] no running pet found. Start one with `pixelpal` first, \
+                 then run `pixelpal {}`.",
                 line.split_whitespace().next().unwrap_or("")
             );
         }
@@ -215,17 +215,17 @@ fn send_or_hint(line: &str) {
 
 fn print_help() {
     println!(
-        "catpet — desktop cat pet\n\
+        "pixelpal — desktop pixel-pal (cat or Rick)\n\
          \n\
-         catpet                 run the pet\n\
-         catpet meow            work-done jump + meow\n\
-         catpet pomodoro        toggle pomodoro (25/5)\n\
-         catpet stretch         stretch reminder now\n\
-         catpet color <name>    orange black brown white\n\
-         catpet character <c>   cat | rick\n\
-         catpet quit            close the pet\n\
+         pixelpal                 run the pet\n\
+         pixelpal meow            work-done jump + meow\n\
+         pixelpal pomodoro        toggle pomodoro (25/5)\n\
+         pixelpal stretch         stretch reminder now\n\
+         pixelpal color <name>    orange black brown white\n\
+         pixelpal character <c>   cat | rick\n\
+         pixelpal quit            close the pet\n\
          \n\
-         Drag the cat with the left mouse button. Hover it to pet it."
+         Drag the pal with the left mouse button. Hover it to pet it."
     );
 }
 
@@ -311,7 +311,7 @@ impl App {
             }
             IpcCmd::SetPattern(_name) => {
                 // Patterns don't apply to the fixed sprite art; accepted as a
-                // no-op so legacy `catpet pattern X` calls don't error.
+                // no-op so legacy `pixelpal pattern X` calls don't error.
             }
             IpcCmd::SetUserName(name) => {
                 let name = name.trim().to_string();
@@ -413,7 +413,7 @@ impl App {
             Action::SetName => {
                 // Full text entry needs a popup; for now cycle a hint.
                 self.state
-                    .show_bubble("set via: catpet name X", Duration::from_millis(2600), now);
+                    .show_bubble("set via: pixelpal name X", Duration::from_millis(2600), now);
             }
             Action::ShowName => {
                 let msg = if self.user_name.is_empty() {
@@ -551,7 +551,7 @@ impl ApplicationHandler<AppMsg> for App {
             return;
         }
         let attrs = Window::default_attributes()
-            .with_title("catpet")
+            .with_title("pixelpal")
             .with_inner_size(PhysicalSize::new(render::WIN, render::WIN))
             .with_decorations(false)
             .with_transparent(true)
@@ -758,7 +758,7 @@ fn run_pet() {
         timers: Timers::new(now),
         cfg: Config::load(),
         sprites: sprite::Sprites::load(),
-        menu: menu::Menu::new(concat!("CatPet v", env!("CARGO_PKG_VERSION"))),
+        menu: menu::Menu::new(concat!("PixelPal v", env!("CARGO_PKG_VERSION"))),
         user_name: load_name(),
         proxy,
         rx,
@@ -784,7 +784,7 @@ fn asset_dir() -> std::path::PathBuf {
             let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".into());
             std::path::PathBuf::from(home).join(".local/share")
         });
-    base.join("catpet")
+    base.join("pixelpal")
 }
 
 fn name_path() -> std::path::PathBuf {

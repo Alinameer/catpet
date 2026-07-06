@@ -27,7 +27,7 @@ pub enum InputEvent {
 /// stays fully functional for everything except global-input reactions.
 pub fn spawn(tx: Sender<InputEvent>) {
     thread::Builder::new()
-        .name("catpet-input".into())
+        .name("pixelpal-input".into())
         .spawn(move || {
             let callback = move |event: rdev::Event| {
                 let msg = match event.event_type {
@@ -45,7 +45,7 @@ pub fn spawn(tx: Sender<InputEvent>) {
 
             if let Err(err) = rdev::listen(callback) {
                 eprintln!(
-                    "[catpet] global input listener unavailable ({err:?}); \
+                    "[pixelpal] global input listener unavailable ({err:?}); \
                      mouse/keyboard reactions disabled. The pet still runs."
                 );
             }
