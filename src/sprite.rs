@@ -10,6 +10,10 @@
 //!
 //! Within a row, frame 1 is the "neutral" mid-step; 0 and 2 are the two step
 //! extremes. We use col 1 as the idle/stand pose and cycle 0->1->2->1 for walks.
+//!
+//! Rick additionally ships two standalone one-frame poses (see [`RickPose`]) that
+//! replace the whole grid frame for specific interactions: hanging from a hook
+//! while dragged, and hunched over a keyboard while typing.
 
 use image::RgbaImage;
 
@@ -24,6 +28,12 @@ const BLACK: &[u8] = include_bytes!("../assets/sprites/cat_black.png");
 const BROWN: &[u8] = include_bytes!("../assets/sprites/cat_brown.png");
 const WHITE: &[u8] = include_bytes!("../assets/sprites/cat_white.png");
 const RICK: &[u8] = include_bytes!("../assets/sprites/rick.png");
+/// Rick's two special one-off poses (not part of the 3x4 grid): reaching up to a
+/// hanging hook while dragged, and hunched over a keyboard while typing. Each is
+/// a single frame padded to Rick's 2:3 frame aspect so the renderer's box-fit
+/// keeps proportions intact.
+const RICK_DRAG: &[u8] = include_bytes!("../assets/sprites/rick_drag.png");
+const RICK_TYPE: &[u8] = include_bytes!("../assets/sprites/rick_type.png");
 
 #[derive(Clone, Copy, Debug)]
 #[allow(dead_code)] // Up is a valid pose we may use for a "walk away" idle later
@@ -43,6 +53,17 @@ pub enum CharacterKind {
     Rick,
 }
 
+/// A special full-body pose Rick strikes for a specific interaction. These live
+/// outside the 3x4 walk grid because they replace the whole figure (arm raised to
+/// a hook, hunched over a keyboard) rather than a step in a cycle.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RickPose {
+    /// Reaching up, hanging from a ceiling hook — shown while being dragged.
+    Drag,
+    /// Hunched over a keyboard, hands on the keys — shown while the user types.
+    Type,
+}
+
 /// Resolve a config character string. Unknown values act as the cat.
 pub fn kind(character: &str) -> CharacterKind {
     if character.eq_ignore_ascii_case("rick") {
@@ -50,6 +71,23 @@ pub fn kind(character: &str) -> CharacterKind {
     } else {
         CharacterKind::Cat
     }
+}
+
+/// Decode a single embedded PNG to RGBA. Used for Rick's one-off pose frames,
+/// which aren't sliced into a grid.
+fn decode(bytes: &[u8]) -> RgbaImage {
+    image::load_from_memory(bytes)
+        .expect("embedded sprite failed to decode")
+        .to_rgba8()
+}
+
+/// Split a horizontal `frames`-wide animation strip into equal-width frames.
+fn slice_strip(img: &RgbaImage, frames: u32) -> Vec<RgbaImage> {
+    let fw = img.width() / frames;
+    let fh = img.height();
+    (0..frames)
+        .map(|i| image::imageops::crop_imm(img, i * fw, 0, fw, fh).to_image())
+        .collect()
 }
 
 /// One decoded colour sheet, pre-sliced into individual RGBA frames.
@@ -93,7 +131,15 @@ pub struct Sprites {
     brown: Sheet,
     white: Sheet,
     rick: Sheet,
+    /// Drag pose is a single still frame.
+    rick_drag: RgbaImage,
+    /// Type pose is a horizontal strip of `RICK_TYPE_FRAMES` frames the renderer
+    /// cycles so Rick's hands actually tap the keyboard.
+    rick_type: Vec<RgbaImage>,
 }
+
+/// The typing pose ships as a horizontal strip of this many equal-width frames.
+pub const RICK_TYPE_FRAMES: u32 = 4;
 
 impl Sprites {
     pub fn load() -> Sprites {
@@ -103,6 +149,21 @@ impl Sprites {
             brown: Sheet::from_bytes(BROWN),
             white: Sheet::from_bytes(WHITE),
             rick: Sheet::from_bytes(RICK),
+            rick_drag: decode(RICK_DRAG),
+            rick_type: slice_strip(&decode(RICK_TYPE), RICK_TYPE_FRAMES),
+        }
+    }
+
+    /// A frame of one of Rick's special full-body poses. `col` selects the
+    /// animation frame (only the typing pose has more than one; drag ignores it).
+    /// Only meaningful when the active character is Rick.
+    pub fn rick_pose(&self, pose: RickPose, col: u32) -> &RgbaImage {
+        match pose {
+            RickPose::Drag => &self.rick_drag,
+            RickPose::Type => {
+                let i = (col as usize) % self.rick_type.len();
+                &self.rick_type[i]
+            }
         }
     }
 
@@ -163,5 +224,32 @@ mod tests {
         // The cat sheets stay at the native 32x48.
         let c = s.sheet("cat", "orange").frame(Facing::Down, 1);
         assert_eq!((c.width(), c.height()), (FRAME_W, FRAME_H));
+    }
+
+    #[test]
+    fn rick_poses_are_distinct_and_frame_shaped() {
+        let s = Sprites::load();
+        let drag = s.rick_pose(RickPose::Drag, 0);
+        let typ = s.rick_pose(RickPose::Type, 0);
+        // Two different images, not the same handle.
+        assert!(!std::ptr::eq(drag, typ));
+        // Each is padded to Rick's 2:3 frame aspect so the renderer's box-fit
+        // keeps proportions (allow a pixel of rounding slack).
+        for pose in [drag, typ] {
+            let ratio = pose.width() as f32 / pose.height() as f32;
+            let expected = FRAME_W as f32 / FRAME_H as f32;
+            assert!((ratio - expected).abs() < 0.02, "aspect {ratio} != {expected}");
+        }
+    }
+
+    #[test]
+    fn typing_pose_has_distinct_animation_frames() {
+        let s = Sprites::load();
+        // The strip slices into RICK_TYPE_FRAMES frames, col wraps around them,
+        // and the hand-bob frames aren't all identical (0 differs from neutral 1).
+        let f0 = s.rick_pose(RickPose::Type, 0);
+        let f1 = s.rick_pose(RickPose::Type, 1);
+        assert!(std::ptr::eq(f0, s.rick_pose(RickPose::Type, RICK_TYPE_FRAMES)));
+        assert_ne!(f0.as_raw(), f1.as_raw(), "typing frames should differ");
     }
 }

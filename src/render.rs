@@ -6,7 +6,7 @@
 
 use crate::config::Config;
 use crate::menu::{Menu, ITEM_H, HEADER_H, MENU_W, PAD};
-use crate::sprite::{kind, CharacterKind, Facing, Sprites, FRAME_H, FRAME_W};
+use crate::sprite::{kind, CharacterKind, Facing, RickPose, Sprites, FRAME_H, FRAME_W};
 use crate::state::{CatState, Mood};
 use crate::timers::{Phase, Timers};
 use std::time::Instant;
@@ -38,9 +38,37 @@ pub fn render(
 
     let (facing, col) = pick_frame(state);
 
+    // Rick has two dedicated full-body poses that replace the walk frame: he
+    // hangs from a hook while dragged and hunches over a keyboard while typing.
+    // For any other character these are None and nothing below changes.
+    let rick_pose = if kind(&cfg.character) == CharacterKind::Rick {
+        if state.dragging {
+            Some(RickPose::Drag)
+        } else if state.mood == Mood::Typing {
+            Some(RickPose::Type)
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
+    // Animation frame for the typing pose. The 4-frame strip is ordered
+    // [left-hand up, neutral, right-hand up, neutral], so simply advancing
+    // through it 0->1->2->3 alternates the tapping hands. Typing energy speeds
+    // it up (faster typing = busier hands). Drag is a still pose, so its column
+    // is irrelevant.
+    let pose_col = ((state.clock * (7.0 + state.energy * 9.0)) as usize % 4) as u32;
+
     // Mochi squash: positive `squash` stretches tall + thin, negative squashes
-    // wide + short, preserving footprint. Wobble shears horizontally.
-    let sq = state.squash.clamp(-0.4, 0.5);
+    // wide + short, preserving footprint. Wobble shears horizontally. Rick's
+    // pose art already carries its own posture (raised arm, hunch), so squashing
+    // it would distort the hook/chain — hold it neutral while a pose is active.
+    let sq = if rick_pose.is_some() {
+        0.0
+    } else {
+        state.squash.clamp(-0.4, 0.5)
+    };
     let scale_x = 1.0 - sq * 0.6;
     let scale_y = 1.0 + sq;
     let base_w = (FRAME_W * SCALE) as f32;
@@ -59,7 +87,9 @@ pub fn render(
     draw_shadow(&mut pm, cx, cat_top + WIN as f32 - 12.0, state.hop);
 
     // A little keyboard the cat kneads while typing (drawn behind the paws).
-    if state.mood == Mood::Typing {
+    // Rick brings his own keyboard in the pose art, so skip the cat overlay for
+    // him — otherwise two keyboards stack.
+    if state.mood == Mood::Typing && rick_pose.is_none() {
         draw_keyboard(&mut pm, state, cx, baseline);
     }
 
@@ -72,12 +102,12 @@ pub fn render(
         blink: state.blink,
         happy: state.mood == Mood::Petted,
     };
-    blit_sprite(&mut pm, sprites, cfg, facing, col, sx, sy, scale_x, scale_y, eyes);
+    blit_sprite(&mut pm, sprites, cfg, facing, col, sx, sy, scale_x, scale_y, eyes, rick_pose, pose_col);
 
     if state.mood == Mood::Petted {
         draw_hearts(&mut pm, state, cxp, sy);
     }
-    if state.mood == Mood::Typing {
+    if state.mood == Mood::Typing && rick_pose.is_none() {
         draw_knead_paws(&mut pm, state, cx, baseline);
     }
 
@@ -144,13 +174,23 @@ fn blit_sprite(
     scale_x: f32,
     scale_y: f32,
     eyes: EyeAim,
+    rick_pose: Option<RickPose>,
+    pose_col: u32,
 ) {
     let sheet = sprites.sheet(&cfg.character, &cfg.color_name);
-    let base = sheet.frame(facing, col);
+    // A Rick pose replaces the whole grid frame; otherwise use the walk frame.
+    let base = match rick_pose {
+        Some(pose) => sprites.rick_pose(pose, pose_col),
+        None => sheet.frame(facing, col),
+    };
 
     // Patch the cat's own eye pixels so the pupils look toward the cursor. Only
-    // done on the front (Down) frame, which is the only one with visible eyes.
-    let patched = if matches!(facing, Facing::Down) && kind(&cfg.character) == CharacterKind::Cat {
+    // done on the front (Down) frame, which is the only one with visible eyes,
+    // and never on a Rick pose (those aren't cat frames).
+    let patched = if rick_pose.is_none()
+        && matches!(facing, Facing::Down)
+        && kind(&cfg.character) == CharacterKind::Cat
+    {
         Some(patch_eyes(base, eyes))
     } else {
         None

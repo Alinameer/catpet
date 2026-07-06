@@ -12,7 +12,9 @@ Under CC-BY you may use, modify, and redistribute the art (including
 commercially) as long as this attribution is preserved. This file satisfies
 that requirement; keep it alongside any distribution of CatPet.
 
-The scientist sprite (`rick.png`) is **fan art supplied by the project owner**
+The scientist sprites (`rick.png`, plus the two interaction poses `rick_drag.png`
+— hanging from a hook while dragged — and `rick_type.png` — hunched over a
+keyboard while typing) are **fan art supplied by the project owner**
 (background-keyed, cropped, and rescaled for this project) — a fan homage, not
 extracted from any show asset.
 

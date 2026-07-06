@@ -117,18 +117,34 @@ fn dump_frames(dir: &str) {
             let _ = pm.save_png(&path);
         }
     }
-    // Rick character samples.
+    // Rick character samples, including his two special poses.
     {
+        let mut cfg = Config::default();
+        cfg.character = "rick".into();
+
         let mut st = CatState::new(now);
         st.clock = 0.5;
         st.set_look(0.9, 0.5);
-        let mut cfg = Config::default();
-        cfg.character = "rick".into();
         let pm = render::render(&st, &timers, &cfg, &sprites, &menu, w, w, now);
         let _ = pm.save_png(&format!("{dir}/rick_idle.png"));
-        st.set_mood(Mood::Typing, Duration::from_secs(5), now);
+
+        // Typing pose: sample two clock points so the hand-bob frames differ.
+        for (name, clk) in [("a", 0.05f32), ("b", 0.35)] {
+            let mut st = CatState::new(now);
+            st.set_mood(Mood::Typing, Duration::from_secs(5), now);
+            st.bump_energy(0.4);
+            st.clock = clk;
+            let pm = render::render(&st, &timers, &cfg, &sprites, &menu, w, w, now);
+            let _ = pm.save_png(&format!("{dir}/rick_typing_{name}.png"));
+        }
+
+        // Drag pose: Rick hanging from the hook.
+        let mut st = CatState::new(now);
+        st.start_drag();
+        st.clock = 0.3;
+        st.tick(now, 0.05);
         let pm = render::render(&st, &timers, &cfg, &sprites, &menu, w, w, now);
-        let _ = pm.save_png(&format!("{dir}/rick_typing.png"));
+        let _ = pm.save_png(&format!("{dir}/rick_drag.png"));
     }
     // Mochi-drag stretched pose (orange), eyes looking left.
     {
