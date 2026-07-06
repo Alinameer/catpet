@@ -12,5 +12,8 @@ Under CC-BY you may use, modify, and redistribute the art (including
 commercially) as long as this attribution is preserved. This file satisfies
 that requirement; keep it alongside any distribution of CatPet.
 
+The scientist sprite (`rick.png`) is **original pixel art created for this
+project** — a fan homage, not extracted or traced from any show asset.
+
 Everything else in CatPet (the Rust code, the synthesized meow/chime sounds) is
 original work for this project.
