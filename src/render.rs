@@ -84,7 +84,24 @@ pub fn render(
     let baseline = cat_top + WIN as f32 - 8.0;
     let sy = baseline - sh - state.hop - breathe;
 
-    draw_shadow(&mut pm, cx, cat_top + WIN as f32 - 12.0, state.hop);
+    // Resolve the exact frame we're about to draw so the shadow can be anchored
+    // to its real feet (which are neither at the frame bottom nor, for some art,
+    // horizontally centred).
+    let sheet = sprites.sheet(&cfg.character, &cfg.color_name);
+    let frame = match rick_pose {
+        Some(pose) => sprites.rick_pose(pose, pose_col),
+        None => sheet.frame(facing, col),
+    };
+
+    // The shadow sits under the figure's FEET. Vertically the art leaves empty
+    // margin below the feet (cat feet ~88% down the frame, rick ~75%);
+    // horizontally the figure may be off-centre in its cell. Anchoring to the
+    // actual feet keeps the shadow glued under the character in every pose.
+    let feet_frac = feet_fraction(&cfg.character);
+    let feet_y = sy + feet_frac * sh;
+    let feet_x = sx + crate::sprite::feet_center_frac(frame) * sw;
+    // Center the shadow a few px below the feet so the character stands ON it.
+    draw_shadow(&mut pm, feet_x, feet_y + 4.0, state.hop);
 
     // A little keyboard the cat kneads while typing (drawn behind the paws).
     // Rick brings his own keyboard in the pose art, so skip the cat overlay for
@@ -102,7 +119,7 @@ pub fn render(
         blink: state.blink,
         happy: state.mood == Mood::Petted,
     };
-    blit_sprite(&mut pm, sprites, cfg, facing, col, sx, sy, scale_x, scale_y, eyes, rick_pose, pose_col);
+    blit_sprite(&mut pm, frame, cfg, facing, sx, sy, scale_x, scale_y, eyes, rick_pose);
 
     if state.mood == Mood::Petted {
         draw_hearts(&mut pm, state, cxp, sy);
@@ -123,6 +140,16 @@ pub fn render(
     }
 
     pm
+}
+
+/// Fraction down the sprite frame where the character's feet sit. The art leaves
+/// empty space below the feet, and it differs per character (cat feet ~88% down,
+/// rick ~75%), so the ground shadow is anchored here rather than the frame bottom.
+fn feet_fraction(character: &str) -> f32 {
+    match kind(character) {
+        CharacterKind::Rick => 144.0 / 192.0, // measured from rick.png's front frame
+        CharacterKind::Cat => 42.0 / 48.0,    // measured from the cat sheets
+    }
 }
 
 /// Pick (facing, column) for the current mood + animation clock.
@@ -165,25 +192,16 @@ struct EyeAim {
 
 fn blit_sprite(
     pm: &mut Pixmap,
-    sprites: &Sprites,
+    base: &image::RgbaImage,
     cfg: &Config,
     facing: Facing,
-    col: u32,
     sx: f32,
     sy: f32,
     scale_x: f32,
     scale_y: f32,
     eyes: EyeAim,
     rick_pose: Option<RickPose>,
-    pose_col: u32,
 ) {
-    let sheet = sprites.sheet(&cfg.character, &cfg.color_name);
-    // A Rick pose replaces the whole grid frame; otherwise use the walk frame.
-    let base = match rick_pose {
-        Some(pose) => sprites.rick_pose(pose, pose_col),
-        None => sheet.frame(facing, col),
-    };
-
     // Patch the cat's own eye pixels so the pupils look toward the cursor. Only
     // done on the front (Down) frame, which is the only one with visible eyes,
     // and never on a Rick pose (those aren't cat frames).

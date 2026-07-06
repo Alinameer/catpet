@@ -81,6 +81,43 @@ fn decode(bytes: &[u8]) -> RgbaImage {
         .to_rgba8()
 }
 
+/// Horizontal centre of a frame's feet, as a fraction of frame width (0..1).
+///
+/// The art isn't always centred in its frame (the standing Rick sits in the
+/// right two-thirds of his cell), so the ground shadow uses this to sit under
+/// the actual feet rather than the frame centre. "Feet" = the bottom ~6% of the
+/// opaque figure. Falls back to 0.5 for an empty frame.
+pub fn feet_center_frac(img: &RgbaImage) -> f32 {
+    let (w, h) = (img.width(), img.height());
+    // Bottom-most opaque row.
+    let mut bot = None;
+    'outer: for y in (0..h).rev() {
+        for x in 0..w {
+            if img.get_pixel(x, y).0[3] > 8 {
+                bot = Some(y);
+                break 'outer;
+            }
+        }
+    }
+    let Some(bot) = bot else { return 0.5 };
+    let span = ((h as f32 * 0.06) as u32).max(1);
+    let top = bot.saturating_sub(span);
+    let (mut sum, mut n) = (0u64, 0u64);
+    for y in top..=bot {
+        for x in 0..w {
+            if img.get_pixel(x, y).0[3] > 8 {
+                sum += x as u64;
+                n += 1;
+            }
+        }
+    }
+    if n == 0 {
+        0.5
+    } else {
+        (sum as f32 / n as f32) / w as f32
+    }
+}
+
 /// Split a horizontal `frames`-wide animation strip into equal-width frames.
 fn slice_strip(img: &RgbaImage, frames: u32) -> Vec<RgbaImage> {
     let fw = img.width() / frames;
@@ -251,5 +288,41 @@ mod tests {
         let f1 = s.rick_pose(RickPose::Type, 1);
         assert!(std::ptr::eq(f0, s.rick_pose(RickPose::Type, RICK_TYPE_FRAMES)));
         assert_ne!(f0.as_raw(), f1.as_raw(), "typing frames should differ");
+    }
+
+    /// Opaque content bounding box (min/max y with any non-transparent pixel).
+    fn content_y_span(img: &RgbaImage) -> (u32, u32) {
+        let (mut top, mut bot) = (img.height(), 0u32);
+        for y in 0..img.height() {
+            for x in 0..img.width() {
+                if img.get_pixel(x, y).0[3] > 8 {
+                    top = top.min(y);
+                    bot = bot.max(y);
+                    break;
+                }
+            }
+        }
+        (top, bot)
+    }
+
+    #[test]
+    fn typing_pose_matches_standing_figure_size() {
+        // Regression guard: the typing pose must render at the same size and feet
+        // baseline as the standing frame, or Rick visibly grows/shrinks and his
+        // shadow detaches when he starts typing. We compare the figure's height
+        // fraction and feet position (both as a fraction of frame height).
+        let s = Sprites::load();
+        let stand = s.sheet("rick", "white").frame(Facing::Down, 1);
+        let (st_top, st_bot) = content_y_span(stand);
+        let stand_fill = (st_bot - st_top) as f32 / stand.height() as f32;
+        let stand_feet = st_bot as f32 / stand.height() as f32;
+
+        let typ = s.rick_pose(RickPose::Type, 1); // neutral frame (both hands down)
+        let (t_top, t_bot) = content_y_span(typ);
+        let type_fill = (t_bot - t_top) as f32 / typ.height() as f32;
+        let type_feet = t_bot as f32 / typ.height() as f32;
+
+        assert!((type_fill - stand_fill).abs() < 0.04, "fill {type_fill} vs {stand_fill}");
+        assert!((type_feet - stand_feet).abs() < 0.03, "feet {type_feet} vs {stand_feet}");
     }
 }
