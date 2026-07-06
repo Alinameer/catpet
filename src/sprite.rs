@@ -324,5 +324,16 @@ mod tests {
 
         assert!((type_fill - stand_fill).abs() < 0.04, "fill {type_fill} vs {stand_fill}");
         assert!((type_feet - stand_feet).abs() < 0.03, "feet {type_feet} vs {stand_feet}");
+
+        // Horizontal feet alignment: the pose art must sit its feet at the same
+        // x-fraction as the standing frame, or Rick (and his shadow) jump
+        // sideways when he starts typing. The walk sheet isn't centred in its
+        // cell, so the poses were baked to match it rather than the frame centre.
+        let stand_feet_x = feet_center_frac(stand);
+        let type_feet_x = feet_center_frac(typ);
+        assert!(
+            (type_feet_x - stand_feet_x).abs() < 0.04,
+            "feet_x {type_feet_x} vs {stand_feet_x} — poses would jump sideways vs standing"
+        );
     }
 }
