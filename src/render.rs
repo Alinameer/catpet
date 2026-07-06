@@ -36,7 +36,7 @@ pub fn render(
     let cx = WIN as f32 / 2.0;
     let breathe = (state.clock * 2.0).sin() * 1.0;
 
-    let (facing, col) = pick_frame(state, kind(&cfg.character));
+    let (facing, col) = pick_frame(state);
 
     // Mochi squash: positive `squash` stretches tall + thin, negative squashes
     // wide + short, preserving footprint. Wobble shears horizontally.
@@ -97,19 +97,13 @@ pub fn render(
 
 /// Pick (facing, column) for the current mood + animation clock.
 ///
-/// The cat now ALWAYS faces the viewer (Facing::Down) so its code-drawn eyes can
-/// track the cursor independently — the body no longer turns to follow the mouse.
-/// Only column (the small in-place step) varies with mood.
-///
-/// Rick is the exception while scrolling: his sheet ships a real side-view
-/// walk cycle, so he turns and marches in place instead of shuffling.
-fn pick_frame(state: &CatState, who: CharacterKind) -> (Facing, u32) {
+/// The pet ALWAYS faces the viewer (Facing::Down) so the cat's code-drawn eyes
+/// can track the cursor independently — the body never turns to follow the
+/// mouse. Only column (the small in-place step) varies with mood; Rick's
+/// front row carries a marching step so the same cycle reads as walking.
+fn pick_frame(state: &CatState) -> (Facing, u32) {
     let cycle = [0u32, 1, 2, 1];
     let step = |speed: f32| cycle[((state.clock * speed) as usize) % 4];
-
-    if who == CharacterKind::Rick && state.mood == Mood::Scrolling {
-        return (Facing::Right, step(6.0));
-    }
 
     let col = match state.mood {
         // Knead: quick paw shuffle in place while typing.
