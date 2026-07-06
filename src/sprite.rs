@@ -1,6 +1,7 @@
 //! Pixel-cat sprite sheets (CC-BY, "Cats Rework" by antumdeluge & zaphgames on
-//! OpenGameArt — see assets/CREDITS.md). Each sheet is a 96x192 image laid out as
-//! a 3-column x 4-row grid of 32x48 frames:
+//! OpenGameArt — see assets/CREDITS.md). Each sheet is a 3-column x 4-row grid;
+//! frame size is sheet-relative (cat: 96x192 -> 32x48 frames, rick: 384x768 ->
+//! 128x192 frames):
 //!
 //!   row 0: facing UP    (away — back/butt view)  frames 0,1,2
 //!   row 1: facing RIGHT (side profile)           frames 0,1,2
@@ -42,19 +43,18 @@ pub struct Sheet {
 impl Sheet {
     fn from_bytes(bytes: &[u8]) -> Sheet {
         let img = image::load_from_memory(bytes)
-            .expect("embedded cat sprite failed to decode")
+            .expect("embedded sprite sheet failed to decode")
             .to_rgba8();
+        // The grid is always 3x4, but the frame size comes from the sheet
+        // itself so characters can ship at different resolutions (cat 32x48,
+        // rick 128x192). The renderer scales every frame into the same
+        // FRAME_W x FRAME_H * SCALE on-screen box.
+        let fw = img.width() / COLS;
+        let fh = img.height() / ROWS;
         let mut frames = Vec::with_capacity((COLS * ROWS) as usize);
         for row in 0..ROWS {
             for col in 0..COLS {
-                let sub = image::imageops::crop_imm(
-                    &img,
-                    col * FRAME_W,
-                    row * FRAME_H,
-                    FRAME_W,
-                    FRAME_H,
-                )
-                .to_image();
+                let sub = image::imageops::crop_imm(&img, col * fw, row * fh, fw, fh).to_image();
                 frames.push(sub);
             }
         }
@@ -129,9 +129,13 @@ mod tests {
     }
 
     #[test]
-    fn rick_frames_have_cat_dimensions() {
+    fn frame_size_comes_from_each_sheet() {
         let s = Sprites::load();
+        // Rick ships at 4x the cat's resolution for a crisper render.
         let f = s.sheet("rick", "orange").frame(Facing::Down, 1);
-        assert_eq!((f.width(), f.height()), (FRAME_W, FRAME_H));
+        assert_eq!((f.width(), f.height()), (4 * FRAME_W, 4 * FRAME_H));
+        // The cat sheets stay at the native 32x48.
+        let c = s.sheet("cat", "orange").frame(Facing::Down, 1);
+        assert_eq!((c.width(), c.height()), (FRAME_W, FRAME_H));
     }
 }

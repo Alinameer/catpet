@@ -161,19 +161,23 @@ fn blit_sprite(
 
     // Destination size after squash. Nearest-neighbour sample from the source
     // frame by destination ratio so the sprite stretches/squashes as a whole.
+    // The on-screen box is fixed (FRAME_W x FRAME_H * SCALE); the frame's own
+    // resolution can differ per character (rick ships at 4x the cat's).
+    let fw = frame.width();
+    let fh = frame.height();
     let dw = ((FRAME_W * SCALE) as f32 * scale_x).round().max(1.0) as i32;
     let dh = ((FRAME_H * SCALE) as f32 * scale_y).round().max(1.0) as i32;
 
     for py in 0..dh {
-        let src_y = ((py as f32 / dh as f32) * FRAME_H as f32) as u32;
-        let src_y = src_y.min(FRAME_H - 1);
+        let src_y = ((py as f32 / dh as f32) * fh as f32) as u32;
+        let src_y = src_y.min(fh - 1);
         let dy = sy as i32 + py;
         if dy < 0 || dy >= win {
             continue;
         }
         for px in 0..dw {
-            let src_x = ((px as f32 / dw as f32) * FRAME_W as f32) as u32;
-            let src_x = src_x.min(FRAME_W - 1);
+            let src_x = ((px as f32 / dw as f32) * fw as f32) as u32;
+            let src_x = src_x.min(fw - 1);
             let sp = frame.get_pixel(src_x, src_y).0;
             let a = sp[3] as u32;
             if a == 0 {
