@@ -20,6 +20,7 @@ pub enum Action {
     OpenReminders,     // open the reminders popup (stub -> bubble)
     BreakStretchToggle,
     SetColor(ColorName), // change the cat's fur colour
+    SetCharacter(CharacterName), // switch between cat and rick
     Quit,
 }
 
@@ -39,6 +40,22 @@ impl ColorName {
             ColorName::Black => "black",
             ColorName::Brown => "brown",
             ColorName::White => "white",
+        }
+    }
+}
+
+/// The available characters, as a menu-friendly enum.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CharacterName {
+    Cat,
+    Rick,
+}
+
+impl CharacterName {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            CharacterName::Cat => "cat",
+            CharacterName::Rick => "rick",
         }
     }
 }
@@ -225,6 +242,13 @@ impl Menu {
 fn build_items() -> Vec<Item> {
     vec![
         Item::parent(
+            "Character",
+            vec![
+                Item::leaf("Cat", Action::SetCharacter(CharacterName::Cat)),
+                Item::leaf("Rick", Action::SetCharacter(CharacterName::Rick)),
+            ],
+        ),
+        Item::parent(
             "Cat color",
             vec![
                 Item::leaf("Orange", Action::SetColor(ColorName::Orange)),
@@ -261,4 +285,19 @@ fn build_items() -> Vec<Item> {
         Item::leaf("Show my name", Action::ShowName),
         Item::leaf("Quit", Action::Quit),
     ]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn character_submenu_is_first_with_cat_and_rick() {
+        let items = build_items();
+        assert_eq!(items[0].label, "Character");
+        let subs = &items[0].submenu;
+        assert_eq!(subs.len(), 2);
+        assert_eq!(subs[0].action, Some(Action::SetCharacter(CharacterName::Cat)));
+        assert_eq!(subs[1].action, Some(Action::SetCharacter(CharacterName::Rick)));
+    }
 }
