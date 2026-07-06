@@ -8,6 +8,7 @@
 //!   pomodoro        -> toggle the pomodoro timer
 //!   stretch         -> trigger a stretch reminder now
 //!   color <name>    -> set fur colour (see palette.rs names)
+//!   character <name> -> set character: cat | rick
 //!   pattern <name>  -> set fur pattern: solid | tabby | spots | tuxedo
 //!   quit            -> exit the pet
 //!
@@ -26,6 +27,7 @@ pub enum Command {
     TogglePomodoro,
     Stretch,
     SetColor(String),
+    SetCharacter(String),
     SetPattern(String),
     SetUserName(String),
     Quit,
@@ -69,6 +71,7 @@ fn parse(line: &str) -> Option<Command> {
         "pomodoro" => Some(Command::TogglePomodoro),
         "stretch" => Some(Command::Stretch),
         "color" => arg.map(Command::SetColor),
+        "character" => arg.map(Command::SetCharacter),
         "pattern" => arg.map(Command::SetPattern),
         "name" => arg.map(Command::SetUserName),
         "quit" => Some(Command::Quit),
@@ -115,4 +118,18 @@ pub fn send(line: &str) -> std::io::Result<()> {
     stream.write_all(line.as_bytes())?;
     stream.write_all(b"\n")?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_character_command() {
+        assert!(matches!(
+            parse("character rick"),
+            Some(Command::SetCharacter(n)) if n == "rick"
+        ));
+        assert!(parse("character").is_none()); // arg required
+    }
 }

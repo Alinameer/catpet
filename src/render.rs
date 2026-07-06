@@ -144,12 +144,12 @@ fn blit_sprite(
     scale_y: f32,
     eyes: EyeAim,
 ) {
-    let sheet = sprites.sheet_for(&cfg.color_name);
+    let sheet = sprites.sheet(&cfg.character, &cfg.color_name);
     let base = sheet.frame(facing, col);
 
     // Patch the cat's own eye pixels so the pupils look toward the cursor. Only
     // done on the front (Down) frame, which is the only one with visible eyes.
-    let patched = if matches!(facing, Facing::Down) {
+    let patched = if matches!(facing, Facing::Down) && !cfg.character.eq_ignore_ascii_case("rick") {
         Some(patch_eyes(base, eyes))
     } else {
         None

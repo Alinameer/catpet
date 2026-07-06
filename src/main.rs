@@ -51,7 +51,7 @@ fn main() {
                 send_or_hint(cmd);
                 return;
             }
-            "color" | "pattern" => {
+            "color" | "pattern" | "character" => {
                 let arg = args.get(1).cloned().unwrap_or_default();
                 send_or_hint(&format!("{cmd} {arg}"));
                 return;
@@ -116,6 +116,19 @@ fn dump_frames(dir: &str) {
             let path = format!("{dir}/cat_{color}_{mname}.png");
             let _ = pm.save_png(&path);
         }
+    }
+    // Rick character samples.
+    {
+        let mut st = CatState::new(now);
+        st.clock = 0.5;
+        st.set_look(0.9, 0.5);
+        let mut cfg = Config::default();
+        cfg.character = "rick".into();
+        let pm = render::render(&st, &timers, &cfg, &sprites, &menu, w, w, now);
+        let _ = pm.save_png(&format!("{dir}/rick_idle.png"));
+        st.set_mood(Mood::Typing, Duration::from_secs(5), now);
+        let pm = render::render(&st, &timers, &cfg, &sprites, &menu, w, w, now);
+        let _ = pm.save_png(&format!("{dir}/rick_typing.png"));
     }
     // Mochi-drag stretched pose (orange), eyes looking left.
     {
@@ -193,6 +206,7 @@ fn print_help() {
          catpet pomodoro        toggle pomodoro (25/5)\n\
          catpet stretch         stretch reminder now\n\
          catpet color <name>    orange black brown white\n\
+         catpet character <c>   cat | rick\n\
          catpet quit            close the pet\n\
          \n\
          Drag the cat with the left mouse button. Hover it to pet it."
@@ -272,6 +286,11 @@ impl App {
                 // Accept any known sprite colour (orange/black/brown/white);
                 // sheet_for() maps aliases gracefully.
                 self.cfg.color_name = name;
+                self.cfg.save();
+            }
+            IpcCmd::SetCharacter(name) => {
+                // "cat" | "rick"; sheet() treats unknown values as cat.
+                self.cfg.character = name;
                 self.cfg.save();
             }
             IpcCmd::SetPattern(_name) => {
@@ -400,6 +419,12 @@ impl App {
             }
             Action::SetColor(c) => {
                 self.cfg.color_name = c.as_str().to_string();
+                self.cfg.save();
+                self.state
+                    .show_bubble(c.as_str(), Duration::from_millis(1400), now);
+            }
+            Action::SetCharacter(c) => {
+                self.cfg.character = c.as_str().to_string();
                 self.cfg.save();
                 self.state
                     .show_bubble(c.as_str(), Duration::from_millis(1400), now);
