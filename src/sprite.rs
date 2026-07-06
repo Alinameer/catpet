@@ -22,6 +22,7 @@ const ORANGE: &[u8] = include_bytes!("../assets/sprites/cat_orange.png");
 const BLACK: &[u8] = include_bytes!("../assets/sprites/cat_black.png");
 const BROWN: &[u8] = include_bytes!("../assets/sprites/cat_brown.png");
 const WHITE: &[u8] = include_bytes!("../assets/sprites/cat_white.png");
+const RICK: &[u8] = include_bytes!("../assets/sprites/rick.png");
 
 #[derive(Clone, Copy, Debug)]
 #[allow(dead_code)] // Up is a valid pose we may use for a "walk away" idle later
@@ -73,6 +74,7 @@ pub struct Sprites {
     black: Sheet,
     brown: Sheet,
     white: Sheet,
+    rick: Sheet,
 }
 
 impl Sprites {
@@ -82,6 +84,7 @@ impl Sprites {
             black: Sheet::from_bytes(BLACK),
             brown: Sheet::from_bytes(BROWN),
             white: Sheet::from_bytes(WHITE),
+            rick: Sheet::from_bytes(RICK),
         }
     }
 
@@ -97,8 +100,38 @@ impl Sprites {
         }
     }
 
+    /// Pick the sheet for the active character. Rick has a single look, so
+    /// the colour only matters for the cat. Unknown characters act as "cat".
+    pub fn sheet(&self, character: &str, color_name: &str) -> &Sheet {
+        match character.to_ascii_lowercase().as_str() {
+            "rick" => &self.rick,
+            _ => self.sheet_for(color_name),
+        }
+    }
+
     #[allow(dead_code)] // used by external callers / future CLI listing
     pub fn color_names() -> &'static [&'static str] {
         &["orange", "black", "brown", "white"]
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sheet_dispatches_on_character() {
+        let s = Sprites::load();
+        assert!(std::ptr::eq(s.sheet("rick", "orange"), &s.rick));
+        assert!(std::ptr::eq(s.sheet("RICK", "white"), &s.rick));
+        assert!(std::ptr::eq(s.sheet("cat", "black"), &s.black));
+        assert!(std::ptr::eq(s.sheet("anything-else", "brown"), &s.brown));
+    }
+
+    #[test]
+    fn rick_frames_have_cat_dimensions() {
+        let s = Sprites::load();
+        let f = s.sheet("rick", "orange").frame(Facing::Down, 1);
+        assert_eq!((f.width(), f.height()), (FRAME_W, FRAME_H));
     }
 }
