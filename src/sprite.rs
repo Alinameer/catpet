@@ -34,6 +34,24 @@ pub enum Facing {
     Left = 3,  // row 3: side profile facing left
 }
 
+/// Which character a config string resolves to. Centralized so the sheet
+/// lookup and every render-side special case agree; add new characters here
+/// and the compiler will point at every site that needs a decision.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CharacterKind {
+    Cat,
+    Rick,
+}
+
+/// Resolve a config character string. Unknown values act as the cat.
+pub fn kind(character: &str) -> CharacterKind {
+    if character.eq_ignore_ascii_case("rick") {
+        CharacterKind::Rick
+    } else {
+        CharacterKind::Cat
+    }
+}
+
 /// One decoded colour sheet, pre-sliced into individual RGBA frames.
 pub struct Sheet {
     /// frames[row * COLS + col]
@@ -103,9 +121,9 @@ impl Sprites {
     /// Pick the sheet for the active character. Rick has a single look, so
     /// the colour only matters for the cat. Unknown characters act as "cat".
     pub fn sheet(&self, character: &str, color_name: &str) -> &Sheet {
-        match character.to_ascii_lowercase().as_str() {
-            "rick" => &self.rick,
-            _ => self.sheet_for(color_name),
+        match kind(character) {
+            CharacterKind::Rick => &self.rick,
+            CharacterKind::Cat => self.sheet_for(color_name),
         }
     }
 
@@ -118,6 +136,14 @@ impl Sprites {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn kind_resolves_character_strings() {
+        assert_eq!(kind("rick"), CharacterKind::Rick);
+        assert_eq!(kind("RICK"), CharacterKind::Rick);
+        assert_eq!(kind("cat"), CharacterKind::Cat);
+        assert_eq!(kind("anything-else"), CharacterKind::Cat);
+    }
 
     #[test]
     fn sheet_dispatches_on_character() {

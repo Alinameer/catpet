@@ -6,7 +6,7 @@
 
 use crate::config::Config;
 use crate::menu::{Menu, ITEM_H, HEADER_H, MENU_W, PAD};
-use crate::sprite::{Facing, Sprites, FRAME_H, FRAME_W};
+use crate::sprite::{kind, CharacterKind, Facing, Sprites, FRAME_H, FRAME_W};
 use crate::state::{CatState, Mood};
 use crate::timers::{Phase, Timers};
 use std::time::Instant;
@@ -36,7 +36,7 @@ pub fn render(
     let cx = WIN as f32 / 2.0;
     let breathe = (state.clock * 2.0).sin() * 1.0;
 
-    let (facing, col) = pick_frame(state);
+    let (facing, col) = pick_frame(state, kind(&cfg.character));
 
     // Mochi squash: positive `squash` stretches tall + thin, negative squashes
     // wide + short, preserving footprint. Wobble shears horizontally.
@@ -100,9 +100,16 @@ pub fn render(
 /// The cat now ALWAYS faces the viewer (Facing::Down) so its code-drawn eyes can
 /// track the cursor independently — the body no longer turns to follow the mouse.
 /// Only column (the small in-place step) varies with mood.
-fn pick_frame(state: &CatState) -> (Facing, u32) {
+///
+/// Rick is the exception while scrolling: his sheet ships a real side-view
+/// walk cycle, so he turns and marches in place instead of shuffling.
+fn pick_frame(state: &CatState, who: CharacterKind) -> (Facing, u32) {
     let cycle = [0u32, 1, 2, 1];
     let step = |speed: f32| cycle[((state.clock * speed) as usize) % 4];
+
+    if who == CharacterKind::Rick && state.mood == Mood::Scrolling {
+        return (Facing::Right, step(6.0));
+    }
 
     let col = match state.mood {
         // Knead: quick paw shuffle in place while typing.
@@ -149,7 +156,7 @@ fn blit_sprite(
 
     // Patch the cat's own eye pixels so the pupils look toward the cursor. Only
     // done on the front (Down) frame, which is the only one with visible eyes.
-    let patched = if matches!(facing, Facing::Down) && !cfg.character.eq_ignore_ascii_case("rick") {
+    let patched = if matches!(facing, Facing::Down) && kind(&cfg.character) == CharacterKind::Cat {
         Some(patch_eyes(base, eyes))
     } else {
         None
